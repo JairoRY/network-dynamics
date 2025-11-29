@@ -1,6 +1,8 @@
 library(stats4)
 library(pracma)
 library(minpack.lm)
+library(dplyr)
+library(ggplot2)
 
 # Utility / AIC functions
 
@@ -19,7 +21,7 @@ param_table <- data.frame()
 delta_table <- data.frame()
 
 # Load degree sequence and compute statistics
-degs <- read.table("degrees_tmax.txt", header = FALSE)$V1
+degs <- read.table("results_simulation/BA_n010_m03_tmax50000/degree_sequence.txt", header = FALSE)$V1
 N <- length(degs)
 ks <- 1:N
 M <- sum(degs)
@@ -111,6 +113,67 @@ print(param_table)
 cat("AIC differences (Δ)\n")
 print(delta_table)
 
+# Plots
+distribution_df <- data.frame(degree = degs) %>%
+  count(degree, name = "frequency") %>%
+  mutate(p_k = frequency / sum(frequency))
+
+best_model <- which.min(delta_table[1, ])
+model_names <- c(
+  "Displaced Poisson",
+  "Displaced Geometric",
+  "Zeta (γ=3)",
+  "Zeta (fitted γ)",
+  "Right-truncated Zeta",
+  "Altmann"
+)
+best_model_name <- model_names[best_model]
+
+params <- param_table[1, ]
+lambda <- params$lambda
+q      <- params$q
+gamma1 <- params$gamma1
+gamma2 <- params$gamma2
+kmax   <- params$kmax
+gamma3 <- params$gamma3
+delta  <- params$delta
+
+p_pois <- function(k) dpois(k, lambda) / (1 - exp(-lambda))
+p_geom <- function(k) (1 - q)^(k - 1) * q
+p_zeta3 <- function(k) k^(-3) / zeta(3)
+p_zeta <- function(k) k^(-gamma1) / zeta(gamma1)
+p_trunc <- function(k) k^(-gamma2) / sum((1:kmax)^(-gamma2))
+p_altmann <- function(k) {
+  Z <- sum((1:N)^(-gamma3) * exp(-delta * (1:N)))
+  k^(-gamma3) * exp(-delta * k) / Z
+}
+
+model_list <- list(
+  p_pois,
+  p_geom,
+  p_zeta3,
+  p_zeta,
+  p_trunc,
+  p_altmann
+)
+
+fit_fun <- model_list[[best_model]]
+
+distribution_df <- distribution_df %>%
+  mutate(p_fit = fit_fun(degree))
+
+ggplot(distribution_df, aes(x = degree)) +
+  geom_point(aes(y = p_k), color = "black", size = 2) +
+  geom_line(aes(y = p_fit), color = "red", linewidth = 1) +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(
+    title = paste("Empirical vs Best-Fit Model:", best_model_name),
+    x = "Degree k",
+    y = "P(k)"
+  ) +
+  theme_minimal(base_size = 14)
+
 # -----------------------------------------------------------------------------
 
 # SCALING OF VERTEX DEGREE OVER TIME
@@ -127,7 +190,7 @@ f3p <- function(t, a, c, d) a*exp(c*t) + d
 f4p <- function(t, a, d1, d2) a*log(t + d1) + d2
 
 # Prepare tables
-row_names <- c("t1", "t10", "t100", "t1000")
+row_names <- c("1", "10", "100", "1000")
 model_names <- c("M0","M1","M2","M3","M4","M0+","M1+","M2+","M3+","M4+")
 param_names <- c("M0_a","M1_a","M2_a","M2_b","M3_a","M3_c","M4_a","M4_d1","M0+_a","M0+_d","M1+_a","M1+_d","M2+_a","M2+_b","M2+_d","M3+_a","M3+_c","M3+_d","M4+_a","M4+_d1","M4+_d2")
 
@@ -135,15 +198,29 @@ table_s <- matrix(NA, nrow = length(row_names), ncol = length(model_names), dimn
 table_AIC <- matrix(NA, nrow = length(row_names), ncol = length(model_names), dimnames = list(row_names, model_names))
 table_delta <- matrix(NA, nrow = length(row_names), ncol = length(model_names), dimnames = list(row_names, model_names))
 table_params <- matrix(NA, nrow = length(row_names), ncol = length(param_names), dimnames = list(row_names, param_names))
+kp_list <- list()
 
 # Iterate over the time series
 files <- list.files(pattern = "^timeseries")
+msub0 <- 3
+nsub0 <- 10
 for (fname in files) {
-  vertex <- sub("timeseries_(t[0-9]+)\\.txt", "\\1", fname)
-  ts <- read.table(fname, header=FALSE, col.names = c("t","degree"))
+  #vertex <- sub("timeseries_t([0-9]+)\\.txt", "\\1", fname)
+  vertex <- sub("timeseries_ti_([0-9]+)\\.csv", "\\1", fname)
+  #ts <- read.table(fname, header=FALSE, col.names = c("t","degree"))
+  ts <- read.csv(fname, header=TRUE)
   time <- ts$t
   k_obs <- ts$degree
   n <- length(time)
+  
+  ti <- as.numeric(vertex)
+  kp_list[[vertex]] <- data.frame(
+    t = time,
+    k1 = sqrt(ti)*k_obs,
+    k2 = k_obs + msub0*log(nsub0 + ti - 1) - msub0,
+    k3 = k_obs,
+    vertex = vertex
+  )
 
   # Model 0
   linear_model <- lm(degree ~ t, data = ts)
@@ -255,7 +332,6 @@ for (fname in files) {
   table_delta[vertex, ] <- rowA - minA
 }
 
-df_homo <- as.data.frame(table_homo)
 df_s <- as.data.frame(table_s)
 df_AIC <- as.data.frame(table_AIC)
 df_delta <- as.data.frame(table_delta)
@@ -282,3 +358,53 @@ print(df_params)
 #digits <- c(0,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2)
 #latex_table <- xtable(df_params, type = "latex", row.names = TRUE, digits = digits)
 #print(latex_table, file = "table_params.tex", include.rownames = TRUE)
+
+#Plots
+kp_all <- do.call(rbind, kp_list)
+t_max <- max(kp_all$t)
+t_theo <- seq(10, t_max, length.out = 1000)
+
+theory_df <- data.frame(
+  t = t_theo,
+  k1 = msub0 * sqrt(t_theo),
+  k2 = msub0*log(msub0 + t_theo - 1),
+  k3 = 2*msub0*t_theo/nsub0
+)
+################ IF BARABÁSI-ALBERT ################ 
+ggplot() +
+  geom_line(data = subset(kp_all, t >= 10), aes(x = t, y = k1, color = vertex), size = 1) +
+  geom_line(data = subset(theory_df, t >= 10), aes(x = t, y = k1), color = "black", size = 1.2, linetype = "dashed") +
+  scale_x_log10() +
+  scale_y_log10() +
+  theme_bw() +
+  labs(
+    title = "Growth of vertex degree k'_i(t) with theoretical curve",
+    x = "t",
+    y = "k'_i(t)"
+  )
+
+################ IF RANDOM ATTACHMENT ################
+ggplot() +
+  geom_line(data = subset(kp_all, t >= 10), aes(x = t, y = k2, color = vertex), size = 1) +
+  geom_line(data = subset(theory_df, t >= 10), aes(x = t, y = k2), color = "black", size = 1.2, linetype = "dashed") +
+  scale_x_log10() +
+  scale_y_log10() +
+  theme_bw() +
+  labs(
+    title = "Growth of vertex degree k''_i(t) with theoretical curve",
+    x = "t",
+    y = "k''_i(t)"
+  )
+
+################ IF NO GROWTH ################
+ggplot() +
+  geom_line(data = subset(kp_all, t >= 10), aes(x = t, y = k3, color = vertex), size = 1) +
+  geom_line(data = subset(theory_df, t >= 10), aes(x = t, y = k3), color = "black", size = 1.2, linetype = "dashed") +
+  scale_x_log10() +
+  scale_y_log10() +
+  theme_bw() +
+  labs(
+    title = "Growth of vertex degree k_i(t) with theoretical curve",
+    x = "t",
+    y = "k_i(t)"
+  )
