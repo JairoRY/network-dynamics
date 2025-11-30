@@ -1,4 +1,3 @@
-<<<<<<<< HEAD:src/modelSelection.R
 library(stats4)
 library(pracma)
 library(minpack.lm)
@@ -524,4 +523,3 @@ ggplot() +
     x = "t",
     y = "k_i(t)"
   )
->>>>>>>> 5bdebd40a20c924a40bfe0966dbf58768dbb19ed:modelSelectionTime.R
