@@ -33,7 +33,7 @@ def run(generator: Type[GraphGenerator]):
 
         for T, G in tqdm.tqdm(generator.generate(), total=Constants.T_MAX):
             for t, f in files.items():
-                if T >= t:
+                if G.has_node(t):
                     f.write(f"{T} {G.degree[t]}\n")
         last_G = G
     finally:
@@ -49,6 +49,6 @@ def run(generator: Type[GraphGenerator]):
         print(f"Saved degree distribution to {f.name}.")
 
 if __name__ == "__main__":
-    classes = [BA_StaticNodes]
+    classes = [BarabasiAlbert, BA_RandomAttachment, BA_StaticNodes]
     for cls in classes:
         run(cls)

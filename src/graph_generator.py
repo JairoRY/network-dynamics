@@ -4,7 +4,7 @@ from typing import Iterable
 
 class Constants:
     N0 = 10
-    M0 = 10
+    M0 = 3
     T_MAX = 10 ** 5
 
 class GraphGenerator():
@@ -58,15 +58,28 @@ class BarabasiAlbert(GraphGenerator):
         GraphGenerator.init(n0, m0, t_max, seed)
 
         G = nx.Graph()
-        G.add_nodes_from(range(-n0, 0)) # Vèrtexs inicials: -n0, ..., -1
+        G.add_nodes_from(range(-n0 + 1, 1)) # Vèrtexs inicials: -n0+1, ..., 0
 
+        # Creem una anella (cicle)
         stubs = []
-        for t in range(t_max):
+        for u in range(-n0 + 1, 0):
+            G.add_edge(u, u + 1)
+            stubs.append(u)
+            stubs.append(u + 1)
+        G.add_edge(0, -n0 + 1)
+        stubs.append(0)
+        stubs.append(-n0 + 1)
+
+        for t in range(1, t_max + 1):
             new_v = t
 
             if len(stubs) >= m0:
-                targets = random.sample(stubs, k=m0)
-            else:
+                targets = []
+                while len(targets) < m0:
+                    u = random.choice(stubs)
+                    if u not in targets:
+                        targets.append(u)
+            else: # Això no hauria de passar
                 targets = random.sample(stubs + list(G.nodes), k=m0)
 
             G.add_node(new_v)
@@ -93,9 +106,14 @@ class BA_RandomAttachment(GraphGenerator):
         GraphGenerator.init(n0, m0, t_max, seed)
 
         G = nx.Graph()
-        G.add_nodes_from(range(-n0, 0)) # Vèrtexs inicials: -n0, ..., -1
+        G.add_nodes_from(range(-n0 + 1, 1)) # Vèrtexs inicials: -n0+1, ..., 0
 
-        for t in range(t_max):
+        # Creem una anella (cicle) per coherència, tot i que aquí no faria falta 
+        for u in range(-n0 + 1, 0):
+            G.add_edge(u, u + 1)
+        G.add_edge(0, -n0 + 1)
+
+        for t in range(1, t_max + 1):
             new_v = t
             targets = random.sample(list(G.nodes), k=m0)
             G.add_node(new_v)
@@ -109,27 +127,37 @@ class BA_StaticNodes(GraphGenerator):
 
     @staticmethod
     def generate(
-        n0: int = None,
+        n0: int = 10000,
         m0: int = Constants.M0,
         t_max: int = Constants.T_MAX,
         *,
         seed: int | None = None
     ) -> Iterable[tuple[int, nx.Graph]]:
 
-        if n0 is None:
-            n0 = m0*t_max
-
         GraphGenerator.init(n0, m0, t_max, seed)
 
         G = nx.Graph()
-        G.add_nodes_from(range(0, n0)) # Vèrtexs: 0, ..., n0-1
+        G.add_nodes_from(range(1, n0 + 1)) # Vèrtexs: 1, ..., n0
 
+        # Creem una anella (cicle)
         stubs = []
-        for t in range(t_max):
-            v = t
+        for u in range(1, n0):
+            G.add_edge(u, u + 1)
+            stubs.append(u)
+            stubs.append(u + 1)
+        G.add_edge(n0, 1)
+        stubs.append(n0)
+        stubs.append(1)
+
+        for t in range(1, t_max + 1):
+            v = random.randrange(1, n0 + 1)
             if len(stubs) >= m0:
-                targets = random.sample(stubs, k=m0)
-            else:
+                targets = []
+                while len(targets) < m0:
+                    u = random.choice(stubs)
+                    if u not in targets:
+                        targets.append(u)
+            else: # Això no hauria de passar
                 targets = random.sample(stubs + list(G.nodes), k=m0)
             for u in targets:
                 G.add_edge(v, u)
