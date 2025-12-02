@@ -45,7 +45,7 @@ class GraphGenerator():
 
 class BarabasiAlbert(GraphGenerator):
     name = "Barabási-Albert Preferential Attachment"
-    dir_name = "barabasi_albert"
+    dir_name = "barabasi_albert_n" + Constants.N0 + "_m" + Constants.M0
     @staticmethod
     def generate(
         n0: int = Constants.N0,
@@ -93,7 +93,7 @@ class BarabasiAlbert(GraphGenerator):
 
 class BA_RandomAttachment(GraphGenerator):
     name = "Barabási-Albert Random Attachment"
-    dir_name = "ba_random_attachment"
+    dir_name = "ba_random_attachment_n" + Constants.N0 + "_m" + Constants.M0
     @staticmethod
     def generate(
         n0: int = Constants.N0,
@@ -123,7 +123,7 @@ class BA_RandomAttachment(GraphGenerator):
 
 class BA_StaticNodes(GraphGenerator):
     name = "Barabási-Albert Static Nodes"
-    dir_name = "ba_static_nodes"
+    dir_name = "ba_static_nodes_n" + Constants.N0 + "_m" + Constants.M0
 
     @staticmethod
     def generate(
