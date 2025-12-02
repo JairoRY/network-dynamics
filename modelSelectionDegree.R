@@ -3,6 +3,7 @@ library(pracma)
 library(minpack.lm)
 library(dplyr)
 library(ggplot2)
+library(xtable)
 
 # DEGREE DISTRIBUTION
 
@@ -15,7 +16,8 @@ param_table <- data.frame()
 delta_table <- data.frame()
 
 # Load degree sequence and compute statistics
-degs <- read.table("degree_sequence.txt", header = FALSE)$V1
+filename <- "results/ba_static_nodes_n1000_m3/degrees_tmax.txt"
+degs <- read.table(filename, header = FALSE)$V1
 N <- length(degs)
 ks <- 1:N
 M <- sum(degs)
@@ -25,7 +27,7 @@ C <- sum(sapply(degs, function(k) if (k > 1) sum(log(2:k)) else 0))
 # Initial values for parameters
 lambda0 <- M / N
 q0 <- N / M
-gamma0 <- 2
+gamma0 <- 3
 kmax0 <- max(degs)
 delta0 <- 1
 
@@ -103,11 +105,18 @@ delta_table <- rbind(delta_table, data.frame(
 rownames(param_table) <- NULL
 cat("Parameter estimates\n")
 print(param_table)
+digits <- c(0,2,2,2,2,2,2,2)
+latex_table <- xtable(param_table, type = "latex", row.names = TRUE, digits = digits)
+print(latex_table, file = "table_params.tex", include.rownames = TRUE)
 
 cat("AIC differences (Δ)\n")
 print(delta_table)
+digits <- c(0,2,2,2,2,2,2)
+latex_table <- xtable(delta_table, type = "latex", row.names = TRUE, digits = digits)
+print(latex_table, file = "table_delta.tex", include.rownames = TRUE)
 
 # Plots
+# Best fit
 distribution_df <- data.frame(degree = degs) %>%
   count(degree, name = "frequency") %>%
   mutate(p_k = frequency / sum(frequency))
@@ -153,17 +162,36 @@ model_list <- list(
 
 fit_fun <- model_list[[best_model]]
 
-distribution_df <- distribution_df %>%
-  mutate(p_fit = fit_fun(degree))
+# Theoretical
+dirname <- basename(dirname(filename))
 
-# POTSER CALDRIA AFEGIR LA DISTRIBUCIÓ ESPERADA SI NO COINCIDEIX AMB L'OBTINGUDA
+if (grepl("barabasi_albert", dirname)) {
+  theoretical_fun <- p_zeta3
+  theoretical_name <- model_names[3]
+} else if (grepl("ba_random_attachment", dirname)) {
+  theoretical_fun <- p_geom
+  theoretical_name <- model_names[2]
+} else if (grepl("ba_static_nodes", dirname)) {
+  theoretical_fun <- p_pois
+  theoretical_name <- model_names[1]
+} else {
+  stop("Unknown model type in filename")
+}
+
+distribution_df <- distribution_df %>%
+  mutate(
+    p_fit = fit_fun(degree),
+    p_theor = theoretical_fun(degree)
+  )
+
 ggplot(distribution_df, aes(x = degree)) +
   geom_point(aes(y = p_k), color = "black", size = 2) +
   geom_line(aes(y = p_fit), color = "red", linewidth = 1) +
+  geom_line(aes(y = p_theor), color = "blue", linewidth = 1, linetype = "dashed") +
   scale_x_log10() +
   scale_y_log10() +
   labs(
-    title = paste("Empirical vs Best-Fit Model:", best_model_name),
+    subtitle = paste("Best Fit:", best_model_name, "| Theoretical:", theoretical_name),
     x = "Degree k",
     y = "P(k)"
   ) +
