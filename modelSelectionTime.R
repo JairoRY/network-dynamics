@@ -202,42 +202,42 @@ theory_df <- data.frame(
   k1 = msub0 * sqrt(t_theo),
   k2 = msub0*log(msub0 + t_theo - 1)
 )
-################ IF BARABÁSI-ALBERT ################ 
-ggplot() +
-  geom_line(data = subset(kp_all, t >= 10), aes(x = t, y = k1, color = vertex), size = 1) +
-  geom_line(data = subset(theory_df, t >= 10), aes(x = t, y = k1), color = "black", size = 1.2, linetype = "dashed") +
-  scale_x_log10(labels = scales::label_number()) +
-  scale_y_log10(labels = scales::label_number()) +
-  theme_bw() +
-  labs(
-    x = "t",
-    y = "k'_i(t)"
-  )
 
-################ IF RANDOM ATTACHMENT ################
-ggplot() +
-  geom_line(data = subset(kp_all, t >= 10), aes(x = t, y = k2, color = vertex), size = 1) +
-  geom_line(data = subset(theory_df, t >= 10), aes(x = t, y = k2), color = "black", size = 1.2, linetype = "dashed") +
-  scale_x_log10(labels = scales::label_number()) +
-  scale_y_log10(labels = scales::label_number()) +
-  theme_bw() +
-  labs(
-    x = "t",
-    y = "k''_i(t)"
-  )
-
-################ IF NO GROWTH ################
-t_theo <- seq(1, t_max, length.out = 1000)
-theory_df$t <- t_theo
-theory_df$k3 <- (2*msub0/nsub0)*t_theo
-
-ggplot() +
-  geom_line(data = kp_all, aes(x = t, y = k3, color = vertex), size = 1) +
-  geom_line(data = theory_df, aes(x = t, y = k3), color = "black", size = 1.2, linetype = "dashed") +
-  scale_x_log10(labels = scales::label_number()) +
-  scale_y_log10(labels = scales::label_number(drop0trailing = TRUE)) +
-  theme_bw() +
-  labs(
-    x = "t",
-    y = "k_i(t)"
-  )
+if (grepl("barabasi_albert", dirname)) {
+  ggplot() +
+    geom_line(data = subset(kp_all, t >= 10), aes(x = t, y = k1, color = vertex), size = 1) +
+    geom_line(data = subset(theory_df, t >= 10), aes(x = t, y = k1), color = "black", size = 1.2, linetype = "dashed") +
+    scale_x_log10(labels = scales::label_number()) +
+    scale_y_log10(labels = scales::label_number()) +
+    theme_bw() +
+    labs(
+      x = "t",
+      y = "k'_i(t)"
+    )
+} else if (grepl("ba_random_attachment", dirname)) {
+  ggplot() +
+    geom_line(data = subset(kp_all, t >= 10), aes(x = t, y = k2, color = vertex), size = 1) +
+    geom_line(data = subset(theory_df, t >= 10), aes(x = t, y = k2), color = "black", size = 1.2, linetype = "dashed") +
+    scale_x_log10(labels = scales::label_number()) +
+    scale_y_log10(labels = scales::label_number()) +
+    theme_bw() +
+    labs(
+      x = "t",
+      y = "k''_i(t)"
+    )
+} else if (grepl("ba_static_nodes", dirname)) {
+  t_theo <- seq(1, t_max, length.out = 1000)
+  theory_df$t <- t_theo
+  theory_df$k3 <- (2*msub0/nsub0)*t_theo
+  
+  ggplot() +
+    geom_line(data = kp_all, aes(x = t, y = k3, color = vertex), size = 1) +
+    geom_line(data = theory_df, aes(x = t, y = k3), color = "black", size = 1.2, linetype = "dashed") +
+    scale_x_log10(labels = scales::label_number()) +
+    scale_y_log10(labels = scales::label_number(drop0trailing = TRUE)) +
+    theme_bw() +
+    labs(
+      x = "t",
+      y = "k_i(t)"
+    )
+}
